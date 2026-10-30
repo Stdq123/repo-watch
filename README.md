@@ -40,7 +40,7 @@ go test ./...
 ## 仓库与参与
 
 - 主仓库：[GitHub](https://github.com/Stdq123/repo-watch)
-- 同步副本：[Gitea](https://gitea.com/puremixai/repo-watch) · [Codeberg](https://codeberg.org/puremixai/repo-watch)
+- 自动同步副本：[Gitea](https://gitea.com/puremixai/repo-watch) · [Codeberg](https://codeberg.org/puremixai/repo-watch)。GitHub Actions 在主分支更新后及每日定时同步 `main` 和标签；仓库议题、发行包和其他分支不在同步范围内。
 - Bug 和功能建议请在主仓库提交 [Issue](https://github.com/Stdq123/repo-watch/issues)；贡献方式见 [CONTRIBUTING.md](CONTRIBUTING.md)。
 - 安全问题请按 [SECURITY.md](SECURITY.md) 私下报告。社区行为准则见 [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)。
 

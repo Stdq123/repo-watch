@@ -1,0 +1,56 @@
+name: Sync mirrors
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '17 3 * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: sync-mirrors
+  cancel-in-progress: false
+jobs:
+  mirror:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: gitea
+            secret: GITEA_MIRROR_SSH_KEY
+          - target: codeberg
+            secret: CODEBERG_MIRROR_SSH_KEY
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Configure deploy key and trusted hosts
+        shell: bash
+        env:
+          DEPLOY_KEY: ${{ secrets[matrix.secret] }}
+        run: |
+          set -euo pipefail
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$DEPLOY_KEY" > ~/.ssh/mirror_key
+          chmod 600 ~/.ssh/mirror_key
+          cat > ~/.ssh/known_hosts <<'HOSTS'
+          codeberg.org ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIVIC02vnjFyL+I4RHfvIGNtOgJMe769VTF1VR4EB3ZB
+          gitea.com ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDHENMBc3mpZqI9+X6BM0ADeXLHDYV5s/FJMs4rXoyXgaSmBdk01UWyuUzpcs692oNM4kzFai0i2JZT/Cz0wKi5X+C/o7gF3u+wEwFax/5UYGbVjWmCW2yCwhzMoqV2C9i9k0tY/cLLe22GHjzxZYzsF9apJe2ANSBgH1Lq2A8lHuvN6N7MQwkGhxXmtRaupZUrz0yiJdcTEICfFE94SCLcbBu2bnqGEPE0m6OafgUF/7aJlz1/EFg7SE9UBExzGcYLFK6RPf3X0WZx691Sq0VR9N9LHBquMtZsrsXbicHh0RgCdgS0zJBZrF7KCIWuAYVNTluyA8S5RjPXwQc+zhgP
+          HOSTS
+          chmod 600 ~/.ssh/known_hosts
+      - name: Push main and tags
+        shell: bash
+        env:
+          TARGET: ${{ matrix.target }}
+          GIT_SSH_COMMAND: ssh -i ~/.ssh/mirror_key -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes
+        run: |
+          set -euo pipefail
+          if [ "$TARGET" = gitea ]; then
+            remote=git@gitea.com:puremixai/repo-watch.git
+          else
+            remote=git@codeberg.org:puremixai/repo-watch.git
+          fi
+          git push "$remote" HEAD:refs/heads/main 'refs/tags/*:refs/tags/*'

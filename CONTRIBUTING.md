@@ -1,6 +1,6 @@
 # 参与贡献
 
-感谢你帮助改进 Repo Watch。请使用 [GitHub 主仓库](https://github.com/Stdq123/repo-watch)的 Issue 和 Pull Request；较大的功能或行为变更建议先通过 Issue 讨论。Gitea 和 Codeberg 是源码同步副本，更新不是实时自动同步的。
+感谢你帮助改进 Repo Watch。请使用 [GitHub 主仓库](https://github.com/Stdq123/repo-watch)的 Issue 和 Pull Request；较大的功能或行为变更建议先通过 Issue 讨论。Gitea 和 Codeberg 是 GitHub 的自动同步副本。同步 `main` 和标签；请勿直接向副本推送，以免产生冲突。
 
 ## 开发环境
 
