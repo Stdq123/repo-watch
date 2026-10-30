@@ -1,0 +1,35 @@
+{
+  "brand": "Repo Watch",
+  "tagline": "A quiet eye on your repositories",
+  "brief": "A compact desktop monitor for repository updates, designed to stay clear in the tray, app window and documentation.",
+  "adjectives": [
+    "clear",
+    "steady",
+    "focused"
+  ],
+  "criteria": "A distinctive W that remains readable in small sizes and in one colour.",
+  "industry": "software",
+  "brand_color": "#163c2b",
+  "tile_color": "#163c2b",
+  "greyscale": false,
+  "final": true,
+  "concepts": [
+    {
+      "name": "Watch Path",
+      "symbol": "symbol.svg",
+      "lockup": "horizontal.svg",
+      "stacked": "stacked.svg",
+      "avatar": "app-icon-color.svg",
+      "symbol_on_tile": "symbol-on-dark.svg",
+      "symbol_on_dark": "symbol-on-dark.svg",
+      "lockup_on_dark": "horizontal-on-dark.svg",
+      "idea": "A strong W and a single point turn continual observation into a compact mark.",
+      "rationale": [
+        "The W remains legible at small sizes.",
+        "The point suggests a watched change.",
+        "Forest and lime carry forward the existing identity."
+      ]
+    }
+  ],
+  "recommendation": "Watch Path: a focused, simple identity for the desktop and system tray."
+}

@@ -1,0 +1,14 @@
+# Build outputs
+/RepoWatch.exe
+/*.test.exe
+/coverage.out
+
+# Local/editor data
+.idea/
+.vscode/
+*.tmp
+.DS_Store
+Thumbs.db
+
+# Duplicate generated design bundle
+/assets/repowatch-logo-kit.zip
