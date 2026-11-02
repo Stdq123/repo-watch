@@ -49,8 +49,8 @@ jobs:
         run: bash macos/build.sh
       - name: Verify executable architectures
         run: |
-          lipo -verify_arch '${{ matrix.arch }}' 'dist/Repo Watch.app/Contents/MacOS/RepoWatch'
-          lipo -verify_arch '${{ matrix.arch }}' 'dist/Repo Watch.app/Contents/MacOS/repowatch-helper'
+          lipo 'dist/Repo Watch.app/Contents/MacOS/RepoWatch' -verify_arch '${{ matrix.arch }}'
+          lipo 'dist/Repo Watch.app/Contents/MacOS/repowatch-helper' -verify_arch '${{ matrix.arch }}'
       - name: Smoke test packaged helper
         run: |
           tmp_home="$(mktemp -d)"
