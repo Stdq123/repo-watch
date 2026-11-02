@@ -14,12 +14,23 @@ import (
 // The underlying controls remain Windows BUTTONs, retaining keyboard and UIA
 // behavior. The parent subclasses paint only the specific registered buttons.
 type buttonPalette struct {
-	label   string
-	primary bool
-	danger  bool
-	caption bool
-	flat    bool
-	icon    string
+	label    string
+	primary  bool
+	danger   bool
+	caption  bool
+	flat     bool
+	dropdown bool
+	icon     string
+}
+
+func styleNativeSortButton(button *walk.PushButton) {
+	styleNativeButton(button, false, false)
+	if button == nil || highContrastEnabled() {
+		return
+	}
+	p := nativeButtonPalettes[button.Handle()]
+	p.dropdown = true
+	nativeButtonPalettes[button.Handle()] = p
 }
 
 func styleNativeLinkButton(button *walk.PushButton) {
@@ -161,7 +172,11 @@ func paintNativeButton(item *win.DRAWITEMSTRUCT, p buttonPalette) {
 	oldBrush := win.SelectObject(item.HDC, win.HGDIOBJ(brush))
 	oldPen := win.SelectObject(item.HDC, win.HGDIOBJ(pen))
 	r := item.RcItem
-	win.RoundRect(item.HDC, r.Left, r.Top, r.Right, r.Bottom, 9, 9)
+	radius := int32(9)
+	if p.dropdown {
+		radius = (r.Bottom - r.Top) * 14 / 40
+	}
+	win.RoundRect(item.HDC, r.Left, r.Top, r.Right, r.Bottom, radius, radius)
 	win.SelectObject(item.HDC, oldBrush)
 	win.SelectObject(item.HDC, oldPen)
 	win.DeleteObject(win.HGDIOBJ(brush))
@@ -175,7 +190,15 @@ func paintNativeButton(item *win.DRAWITEMSTRUCT, p buttonPalette) {
 	}
 	ptr, err := windows.UTF16PtrFromString(p.label)
 	if err == nil {
-		if p.icon != "" {
+		if p.dropdown {
+			padding := (r.Bottom - r.Top) * 12 / 40
+			size := (r.Bottom - r.Top) * 16 / 40
+			drawButtonIcon(item.HDC, "chevron-down", r.Right-padding-size, r.Top+(r.Bottom-r.Top-size)/2, size, text)
+			textRect := r
+			textRect.Left += padding
+			textRect.Right -= padding + size + padding/2
+			win.DrawTextEx(item.HDC, ptr, -1, &textRect, win.DT_LEFT|win.DT_VCENTER|win.DT_SINGLELINE|win.DT_END_ELLIPSIS, nil)
+		} else if p.icon != "" {
 			var measured win.SIZE
 			units := windows.StringToUTF16(p.label)
 			win.GetTextExtentPoint32(item.HDC, ptr, int32(len(units)-1), &measured)
@@ -216,7 +239,8 @@ func drawButtonIcon(hdc win.HDC, icon string, x, y, size int32, color walk.Color
 		"terminal": "lucide/terminal",
 		"github":   "simple-icons/github", "gitea": "simple-icons/gitea", "codeberg": "simple-icons/codeberg",
 		"sort": "lucide/list-filter", "settings": "lucide/settings",
-		"minimize": "lucide/minus", "maximize": "lucide/square", "close": "lucide/x",
+		"chevron-down": "lucide/chevron-down",
+		"minimize":     "lucide/minus", "maximize": "lucide/square", "close": "lucide/x",
 	}
 	if name, ok := assets[icon]; ok {
 		drawNativeIcon(hdc, walk.Rectangle{X: int(x), Y: int(y), Width: int(size), Height: int(size)}, name, color)

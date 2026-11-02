@@ -69,25 +69,29 @@ func paintColumnHeader(c *walk.Canvas, bounds walk.Rectangle, dpi, listWidth, so
 		w := col[i+1] - col[i] - px(12)
 		order, sortable := map[int]int{0: 1, 3: 2, 4: 3, 5: 0}[i]
 		if sortable {
-			w -= px(17)
+			w -= px(19)
 		}
 		if w > 0 {
 			_ = c.DrawTextPixels(text, font, walk.RGB(53, 61, 70), walk.Rectangle{X: x, Y: bounds.Y, Width: w, Height: bounds.Height}, walk.TextSingleLine|walk.TextVCenter|walk.TextEndEllipsis)
 			if sortable {
 				measured, _, err := c.MeasureTextPixels(text, font, walk.Rectangle{Width: w, Height: bounds.Height}, walk.TextSingleLine|walk.TextCalcRect)
-				if err == nil && measured.Width+px(15) <= col[i+1]-col[i]-px(12) {
-					icon, tint := "lucide/arrow-down", walk.RGB(137, 145, 150)
+				if err == nil && measured.Width+px(17) <= col[i+1]-col[i]-px(12) {
+					icon, tint := "lucide/arrow-down", walk.RGB(115, 125, 130)
 					if order == sortIndex {
 						tint = walk.RGB(36, 55, 45)
-						if reverse {
+						if headerSortAscending(sortIndex, reverse) {
 							icon = "lucide/arrow-up"
 						}
 					}
-					drawNativeIcon(c.HDC(), walk.Rectangle{X: x + measured.Width + px(4), Y: bounds.Y + (bounds.Height-px(12))/2, Width: px(12), Height: px(12)}, icon, tint)
+					drawNativeIcon(c.HDC(), walk.Rectangle{X: x + measured.Width + px(4), Y: bounds.Y + (bounds.Height-px(14))/2, Width: px(14), Height: px(14)}, icon, tint)
 				}
 			}
 		}
 	}
+}
+
+func headerSortAscending(index int, reverse bool) bool {
+	return (index == 1) != reverse
 }
 func tagColors(tag string) (walk.Color, walk.Color) {
 	var hash uint32 = 2166136261
@@ -413,7 +417,12 @@ func paintSeparator(c *walk.Canvas, b walk.Rectangle) error {
 
 func paintSearchIcon(c *walk.Canvas, b walk.Rectangle) error {
 	if c != nil {
-		drawNativeIcon(c.HDC(), b, "lucide/search", walk.RGB(91, 102, 115))
+		size := b.Width
+		if b.Height < size {
+			size = b.Height
+		}
+		icon := walk.Rectangle{X: b.X + (b.Width-size)/2, Y: b.Y + (b.Height-size)/2, Width: size, Height: size}
+		drawNativeIcon(c.HDC(), icon, "lucide/search", walk.RGB(91, 102, 115))
 	}
 	return nil
 }

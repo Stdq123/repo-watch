@@ -30,7 +30,7 @@ import (
 //go:embed assets/repowatch-tray.png
 var assets embed.FS
 
-const instanceProtocol = "repowatch-native-inter-v16"
+const instanceProtocol = "repowatch-native-inter-v18"
 
 type repositoryModel struct {
 	walk.ListModelBase
@@ -62,13 +62,14 @@ type nativeApp struct {
 	appLogo            *walk.CustomWidget
 	searchIcon         *walk.CustomWidget
 	searchFrame        *walk.Composite
-	sortFrame          *walk.Composite
+	searchInner        *walk.Composite
 	titleBar           *walk.Composite
 	table              *walk.ListBox
 	filter             *walk.ListBox
 	filterLabels       []string
 	search             *walk.LineEdit
-	sortBox            *walk.ComboBox
+	sortButton         *walk.PushButton
+	sortIndex          int
 	sortDirection      *walk.PushButton
 	reverseSort        bool
 	columnHeader       *walk.CustomWidget
@@ -286,8 +287,8 @@ func (a *nativeApp) create() error {
 					Composite{AssignTo: &a.centerPanel, Background: surface, MinSize: Size{Width: 418}, StretchFactor: 4, Layout: Grid{Columns: 1, Margins: Margins{Left: 14, Top: 19, Right: 12, Bottom: 8}, Spacing: 8, Alignment: AlignHNearVNear}, Children: []Widget{
 						Composite{Row: 0, Background: surface, MinSize: Size{Height: 48}, MaxSize: Size{Height: 48}, Layout: Grid{Columns: 1, MarginsZero: true, SpacingZero: true, Alignment: AlignHNearVNear}, Children: []Widget{
 							Composite{Background: surface, MinSize: Size{Height: 40}, MaxSize: Size{Height: 40}, Layout: HBox{MarginsZero: true, Spacing: 8, Alignment: AlignHNearVCenter}, Children: []Widget{
-								Composite{AssignTo: &a.searchFrame, Background: SolidColorBrush{Color: walk.RGB(224, 227, 230)}, StretchFactor: 4, Layout: HBox{Margins: Margins{Left: 1, Top: 1, Right: 1, Bottom: 1}, SpacingZero: true, Alignment: AlignHNearVCenter}, Children: []Widget{
-									Composite{Background: surface, Layout: Grid{Columns: 2, Margins: Margins{Left: 9, Top: 0, Right: 6, Bottom: 0}, Spacing: 6, Alignment: AlignHNearVCenter}, Children: []Widget{
+								Composite{AssignTo: &a.searchFrame, Background: SolidColorBrush{Color: walk.RGB(217, 222, 225)}, StretchFactor: 4, Layout: HBox{Margins: Margins{Left: 1, Top: 1, Right: 1, Bottom: 1}, SpacingZero: true, Alignment: AlignHNearVCenter}, Children: []Widget{
+									Composite{AssignTo: &a.searchInner, Background: surface, Layout: Grid{Columns: 2, Margins: Margins{Left: 9, Top: 4, Right: 6}, Spacing: 6, Alignment: AlignHNearVCenter}, Children: []Widget{
 										CustomWidget{Column: 0, AssignTo: &a.searchIcon, Background: surface, MinSize: Size{Width: 16, Height: 16}, MaxSize: Size{Width: 16, Height: 16}, PaintPixels: func(c *walk.Canvas, _ walk.Rectangle) error {
 											if a.searchIcon != nil {
 												return paintSearchIcon(c, a.searchIcon.ClientBoundsPixels())
@@ -301,15 +302,7 @@ func (a *nativeApp) create() error {
 										}},
 									}},
 								}},
-								Composite{AssignTo: &a.sortFrame, Background: SolidColorBrush{Color: walk.RGB(224, 227, 230)}, MinSize: Size{Width: 180}, MaxSize: Size{Width: 190}, Layout: Grid{Columns: 1, Margins: Margins{Left: 1, Top: 1, Right: 1, Bottom: 1}, SpacingZero: true}, Children: []Widget{
-									Composite{Background: surface, Layout: HBox{Margins: Margins{Left: 6, Right: 4}, SpacingZero: true, Alignment: AlignHNearVCenter}, Children: []Widget{
-										ComboBox{AssignTo: &a.sortBox, Model: []string{"排序：最近更新", "排序：仓库名称", "排序：Stars", "排序：Forks"}, OnCurrentIndexChanged: func() {
-											if a.table != nil {
-												a.renderRows()
-											}
-										}},
-									}},
-								}},
+								PushButton{AssignTo: &a.sortButton, Text: "排序：最近更新", MinSize: Size{Width: 180, Height: 40}, MaxSize: Size{Width: 190, Height: 40}, OnClicked: func() { a.showSortMenu() }},
 								PushButton{AssignTo: &a.sortDirection, Text: "⇅", MinSize: Size{Width: 40, Height: 40}, MaxSize: Size{Width: 40, Height: 40}, Accessibility: Accessibility{Name: "切换排序方向"}, OnClicked: func() {
 									a.reverseSort = !a.reverseSort
 									a.updateSortDirectionLabel()
@@ -327,7 +320,7 @@ func (a *nativeApp) create() error {
 								if a.table != nil {
 									width = a.table.ClientBoundsPixels().Width
 								}
-								paintColumnHeader(c, a.columnHeader.ClientBoundsPixels(), a.columnHeader.DPI(), width, a.sortBox.CurrentIndex(), a.reverseSort)
+								paintColumnHeader(c, a.columnHeader.ClientBoundsPixels(), a.columnHeader.DPI(), width, a.sortIndex, a.reverseSort)
 							}
 							return nil
 						}},
@@ -414,12 +407,18 @@ func (a *nativeApp) create() error {
 	a.window.StatusBar().SetVisible(false)
 	styleNativeFrame(a.window, a.titleBar)
 	roundNativePanel(a.centerFrame, 8)
-	roundNativePanel(a.searchFrame, 8)
-	roundNativePanel(a.sortFrame, 8)
+	roundNativePanel(a.searchFrame, 14)
+	roundNativePanel(a.searchInner, 12)
+	centerNativeSearchEdit(a.search)
 	for _, handle := range []win.HWND{a.search.Handle(), a.details.Handle()} {
 		style := win.GetWindowLong(handle, win.GWL_EXSTYLE)
 		win.SetWindowLong(handle, win.GWL_EXSTYLE, style&^win.WS_EX_CLIENTEDGE)
 		win.SetWindowPos(handle, 0, 0, 0, 0, 0, win.SWP_NOMOVE|win.SWP_NOSIZE|win.SWP_NOZORDER|win.SWP_FRAMECHANGED)
+	}
+	if !highContrastEnabled() {
+		style := win.GetWindowLong(a.search.Handle(), win.GWL_STYLE)
+		win.SetWindowLong(a.search.Handle(), win.GWL_STYLE, style&^win.WS_BORDER)
+		win.SetWindowPos(a.search.Handle(), 0, 0, 0, 0, 0, win.SWP_NOMOVE|win.SWP_NOSIZE|win.SWP_NOZORDER|win.SWP_FRAMECHANGED)
 	}
 	if grid, ok := a.window.Layout().(*walk.GridLayout); ok {
 		// Grid keeps a nonzero stretch factor for the fixed-height title row.
@@ -462,6 +461,7 @@ func (a *nativeApp) create() error {
 	styleNativeButtonIcon(a.terminalButton, false, "terminal")
 	styleNativeButtonIcon(a.manageButton, false, "edit")
 	styleNativeButtonIcon(a.sortDirection, false, "sort")
+	styleNativeSortButton(a.sortButton)
 	if p, ok := nativeButtonPalettes[a.sortDirection.Handle()]; ok {
 		p.label = ""
 		nativeButtonPalettes[a.sortDirection.Handle()] = p
@@ -469,7 +469,6 @@ func (a *nativeApp) create() error {
 	styleCaptionButton(a.minimizeButton, "最小化", "minimize")
 	styleCaptionButton(a.maximizeButton, "最大化或还原", "maximize")
 	styleCaptionButton(a.closeButton, "关闭窗口", "close")
-	_ = a.sortBox.SetCurrentIndex(0)
 	a.loadingSettings = true
 	a.pin.SetChecked(loadPinSetting(a.settingsPath))
 	a.loadingSettings = false
@@ -681,8 +680,8 @@ func (a *nativeApp) renderRows() {
 	}
 	items := searchRepositories(filterRepositories(a.all, a.selectedTag), query)
 	order := "updated"
-	if a.sortBox != nil {
-		switch a.sortBox.CurrentIndex() {
+	{
+		switch a.sortIndex {
 		case 1:
 			order = "name"
 		case 2:
@@ -726,14 +725,65 @@ func (a *nativeApp) sortByHeader(x int) {
 	if !ok {
 		return
 	}
-	if a.sortBox.CurrentIndex() == order {
+	if a.sortIndex == order {
 		a.reverseSort = !a.reverseSort
 		a.updateSortDirectionLabel()
 		a.renderRows()
 	} else {
 		a.reverseSort = false
 		a.updateSortDirectionLabel()
-		_ = a.sortBox.SetCurrentIndex(order)
+		a.setSortIndex(order)
+	}
+}
+
+var nativeSortLabels = []string{"排序：最近更新", "排序：仓库名称", "排序：Stars", "排序：Forks"}
+var appendNativeMenu = windows.NewLazySystemDLL("user32.dll").NewProc("AppendMenuW")
+
+// The button and popup are native Windows controls; only the button face is
+// styled so its border matches the search field.
+func (a *nativeApp) showSortMenu() {
+	menu := win.CreatePopupMenu()
+	if menu == 0 {
+		return
+	}
+	defer win.DestroyMenu(menu)
+	for i, label := range nativeSortLabels {
+		text, err := windows.UTF16PtrFromString(label)
+		if err != nil {
+			return
+		}
+		flags := uintptr(0) // MF_STRING
+		if i == a.sortIndex {
+			flags = 0x8 // MF_CHECKED
+		}
+		ok, _, _ := appendNativeMenu.Call(uintptr(menu), flags, uintptr(i+1), uintptr(unsafe.Pointer(text)))
+		if ok == 0 {
+			return
+		}
+	}
+	var rect win.RECT
+	if !win.GetWindowRect(a.sortButton.Handle(), &rect) {
+		return
+	}
+	choice := win.TrackPopupMenu(menu, win.TPM_LEFTALIGN|win.TPM_TOPALIGN|win.TPM_RETURNCMD, rect.Left, rect.Bottom, 0, a.window.Handle(), nil)
+	if choice > 0 && int(choice) <= len(nativeSortLabels) {
+		a.setSortIndex(int(choice) - 1)
+	}
+}
+
+func (a *nativeApp) setSortIndex(index int) {
+	if index < 0 || index >= len(nativeSortLabels) {
+		return
+	}
+	a.sortIndex = index
+	_ = a.sortButton.SetText(nativeSortLabels[index])
+	if p, ok := nativeButtonPalettes[a.sortButton.Handle()]; ok {
+		p.label = nativeSortLabels[index]
+		nativeButtonPalettes[a.sortButton.Handle()] = p
+		_ = a.sortButton.Invalidate()
+	}
+	if a.table != nil {
+		a.renderRows()
 	}
 }
 

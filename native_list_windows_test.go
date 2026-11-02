@@ -52,6 +52,11 @@ func TestNativeListMouseMovementDoesNotInvalidateRow(t *testing.T) {
 	validate := user32.NewProc("ValidateRect")
 	getUpdate := user32.NewProc("GetUpdateRect")
 	a.window.Synchronize(func() {
+		_ = a.search.SetText("two")
+		if len(a.model.items) != 1 || a.model.items[0].ID != "two" {
+			t.Errorf("search filtering: got %+v", a.model.items)
+		}
+		_ = a.search.SetText("")
 		for name, hwnd := range map[string]win.HWND{"repositories": a.table.Handle(), "sidebar": a.filter.Handle()} {
 			var row win.RECT
 			if result := win.SendMessage(hwnd, win.LB_GETITEMRECT, 0, uintptr(unsafe.Pointer(&row))); int32(result) == win.LB_ERR {
@@ -101,8 +106,8 @@ func TestNativeListMouseMovementDoesNotInvalidateRow(t *testing.T) {
 		point = uintptr(uint16(x)) | uintptr(uint16(10))<<16
 		win.SendMessage(a.columnHeader.Handle(), win.WM_LBUTTONDOWN, win.MK_LBUTTON, point)
 		win.SendMessage(a.columnHeader.Handle(), win.WM_LBUTTONUP, 0, point)
-		if a.sortBox.CurrentIndex() != 3 || a.reverseSort {
-			t.Errorf("first Forks header click: sort=%d reverse=%t", a.sortBox.CurrentIndex(), a.reverseSort)
+		if a.sortIndex != 3 || a.reverseSort || a.sortButton.Text() != nativeSortLabels[3] {
+			t.Errorf("first Forks header click: sort=%d reverse=%t label=%q", a.sortIndex, a.reverseSort, a.sortButton.Text())
 		}
 		win.SendMessage(a.columnHeader.Handle(), win.WM_LBUTTONDOWN, win.MK_LBUTTON, point)
 		win.SendMessage(a.columnHeader.Handle(), win.WM_LBUTTONUP, 0, point)
@@ -115,11 +120,13 @@ func TestNativeListMouseMovementDoesNotInvalidateRow(t *testing.T) {
 		time.AfterFunc(300*time.Millisecond, func() {
 			a.window.Synchronize(func() {
 				assertInspectorFillsClient(t, a, "normal")
+				assertSearchContentCentered(t, a, "normal")
 				dpi := a.window.DPI()
 				win.SetWindowPos(a.window.Handle(), 0, 0, 0, int32(walk.IntFrom96DPI(1050, dpi)), int32(walk.IntFrom96DPI(650, dpi)), win.SWP_NOMOVE|win.SWP_NOZORDER)
 				time.AfterFunc(300*time.Millisecond, func() {
 					a.window.Synchronize(func() {
 						assertInspectorFillsClient(t, a, "compact")
+						assertSearchContentCentered(t, a, "compact")
 						a.quitting = true
 						_ = a.window.Close()
 					})
@@ -128,6 +135,43 @@ func TestNativeListMouseMovementDoesNotInvalidateRow(t *testing.T) {
 		})
 	})
 	a.window.Run()
+}
+
+func assertSearchContentCentered(t *testing.T, a *nativeApp, mode string) {
+	var frame, edit, icon, textRect win.RECT
+	var inner win.RECT
+	win.GetWindowRect(a.searchFrame.Handle(), &frame)
+	win.GetWindowRect(a.searchInner.Handle(), &inner)
+	win.GetWindowRect(a.search.Handle(), &edit)
+	win.GetWindowRect(a.searchIcon.Handle(), &icon)
+	win.SendMessage(a.search.Handle(), win.EM_GETRECT, 0, uintptr(unsafe.Pointer(&textRect)))
+	dc := win.GetDC(a.search.Handle())
+	if dc == 0 {
+		t.Errorf("%s: could not inspect search font", mode)
+		return
+	}
+	defer win.ReleaseDC(a.search.Handle(), dc)
+	font := win.SendMessage(a.search.Handle(), win.WM_GETFONT, 0, 0)
+	old := win.SelectObject(dc, win.HGDIOBJ(font))
+	defer win.SelectObject(dc, old)
+	var metrics win.TEXTMETRIC
+	if !win.GetTextMetrics(dc, &metrics) {
+		t.Errorf("%s: could not measure search font", mode)
+		return
+	}
+	frameCenter := (frame.Top + frame.Bottom) / 2
+	textCenter := edit.Top + textRect.Top + metrics.TmHeight/2
+	iconCenter := (icon.Top + icon.Bottom) / 2
+	tolerance := int32(walk.IntFrom96DPI(3, a.search.DPI()))
+	if d := textCenter - frameCenter; d < -tolerance || d > tolerance {
+		t.Errorf("%s: search text is off center by %d px (frame=%+v edit=%+v formatting=%+v font height=%d)", mode, d, frame, edit, textRect, metrics.TmHeight)
+	}
+	if d := iconCenter - frameCenter; d < -tolerance || d > tolerance {
+		t.Errorf("%s: search icon is off center by %d px", mode, d)
+	}
+	if gap := edit.Left - icon.Right; gap < 0 || gap > int32(walk.IntFrom96DPI(10, a.search.DPI())) {
+		t.Errorf("%s: excessive gap between search icon and text: %d px (inner=%+v)", mode, gap, inner)
+	}
 }
 
 func assertInspectorFillsClient(t *testing.T, a *nativeApp, mode string) {
@@ -170,6 +214,23 @@ func TestRepositoryColumnsAdaptToAvailableWidthAndDPI(t *testing.T) {
 		columns := repositoryColumns(tc.width, tc.dpi)
 		if columns[1] <= columns[0] || columns[2] <= columns[1] || columns[3] <= columns[2] || columns[4] != columns[3] || columns[5] != columns[4] || columns[6] <= columns[5] {
 			t.Fatalf("compact columns for %+v: %v", tc, columns)
+		}
+	}
+}
+
+func TestHeaderSortDirectionMatchesOrdering(t *testing.T) {
+	for _, tc := range []struct {
+		index   int
+		reverse bool
+		want    bool
+	}{
+		{0, false, false}, {0, true, true},
+		{1, false, true}, {1, true, false},
+		{2, false, false}, {2, true, true},
+		{3, false, false}, {3, true, true},
+	} {
+		if got := headerSortAscending(tc.index, tc.reverse); got != tc.want {
+			t.Errorf("sort index %d reverse %t: ascending=%t, want %t", tc.index, tc.reverse, got, tc.want)
 		}
 	}
 }
