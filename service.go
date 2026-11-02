@@ -3,7 +3,10 @@ package main
 import "fmt"
 
 func (s *Service) ListRepositories() []Repository { return s.monitor.List() }
-func (s *Service) NeedsMigration() bool           { return s.monitor.NeedsMigration() }
+func (s *Service) UpdateRepositoryTags(id string, tags []string) error {
+	return s.monitor.UpdateTags(id, tags)
+}
+func (s *Service) NeedsMigration() bool { return s.monitor.NeedsMigration() }
 func (s *Service) ImportLegacy(repos []Repository) error {
 	if err := s.monitor.ImportLegacy(repos); err != nil {
 		return fmt.Errorf("迁移旧仓库失败：%w", err)

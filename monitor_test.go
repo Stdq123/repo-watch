@@ -13,9 +13,9 @@ func TestFetchRepositoryGitHubAndRelease(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/repos/octo/demo":
-			fmt.Fprint(w, `{"full_name":"octo/demo","description":"A repo","html_url":"https://github.com/octo/demo","stargazers_count":12,"forks_count":3,"open_issues_count":4,"pushed_at":"2026-01-02T00:00:00Z"}`)
+			fmt.Fprint(w, `{"full_name":"octo/demo","description":"A repo","html_url":"https://github.com/octo/demo","stargazers_count":12,"forks_count":3,"open_issues_count":4,"subscribers_count":7,"language":"Go","license":{"spdx_id":"MIT","name":"MIT License"},"created_at":"2025-01-02T00:00:00Z","pushed_at":"2026-01-02T00:00:00Z"}`)
 		case "/repos/octo/demo/releases/latest":
-			fmt.Fprint(w, `{"tag_name":"v1.0","html_url":"https://github.com/octo/demo/releases/tag/v1.0"}`)
+			fmt.Fprint(w, `{"tag_name":"v1.0","html_url":"https://github.com/octo/demo/releases/tag/v1.0","body":"Bug fixes","published_at":"2026-01-01T00:00:00Z"}`)
 		default:
 			http.NotFound(w, r)
 		}
@@ -28,13 +28,16 @@ func TestFetchRepositoryGitHubAndRelease(t *testing.T) {
 	if result.Stars != 12 || result.Forks != 3 || result.Release != "v1.0" {
 		t.Fatalf("unexpected result: %+v", result)
 	}
+	if result.Language != "Go" || result.License != "MIT" || result.CreatedAt != "2025-01-02T00:00:00Z" || result.ReleaseNotes != "Bug fixes" || result.ReleasePublishedAt != "2026-01-01T00:00:00Z" || result.Watchers == nil || *result.Watchers != 7 {
+		t.Fatalf("metadata not retained: %+v", result)
+	}
 }
 
 func TestFetchRepositoryGiteaWithoutRelease(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/api/v1/repos/team/project":
-			fmt.Fprint(w, `{"full_name":"team/project","stars_count":8,"forks_count":2,"open_issues_count":1}`)
+			fmt.Fprint(w, `{"full_name":"team/project","stars_count":8,"forks_count":2,"open_issues_count":1,"watchers_count":3,"license":"Apache-2.0"}`)
 		case "/api/v1/repos/team/project/releases/latest":
 			http.NotFound(w, r)
 		default:
@@ -45,6 +48,9 @@ func TestFetchRepositoryGiteaWithoutRelease(t *testing.T) {
 	result, err := fetchRepository(context.Background(), server.Client(), RepoRequest{Platform: "gitea", BaseURL: server.URL, Owner: "team", Repo: "project"})
 	if err != nil || result.Stars != 8 || result.Release != "" {
 		t.Fatalf("result=%+v err=%v", result, err)
+	}
+	if result.License != "Apache-2.0" || result.Watchers == nil || *result.Watchers != 3 {
+		t.Fatalf("metadata not retained: %+v", result)
 	}
 }
 

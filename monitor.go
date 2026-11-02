@@ -19,16 +19,22 @@ type RepoRequest struct {
 	Repo     string `json:"repo"`
 }
 type Snapshot struct {
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	URL         string `json:"url"`
-	Stars       int    `json:"stars"`
-	Forks       int    `json:"forks"`
-	Issues      int    `json:"issues"`
-	PushedAt    string `json:"pushedAt"`
-	Release     string `json:"release"`
-	ReleaseURL  string `json:"releaseUrl"`
-	CheckedAt   string `json:"checkedAt"`
+	Name               string `json:"name"`
+	Description        string `json:"description"`
+	URL                string `json:"url"`
+	Stars              int    `json:"stars"`
+	Forks              int    `json:"forks"`
+	Issues             int    `json:"issues"`
+	Watchers           *int   `json:"watchers,omitempty"`
+	Language           string `json:"language,omitempty"`
+	License            string `json:"license,omitempty"`
+	CreatedAt          string `json:"createdAt,omitempty"`
+	PushedAt           string `json:"pushedAt"`
+	Release            string `json:"release"`
+	ReleaseURL         string `json:"releaseUrl"`
+	ReleaseNotes       string `json:"releaseNotes,omitempty"`
+	ReleasePublishedAt string `json:"releasePublishedAt,omitempty"`
+	CheckedAt          string `json:"checkedAt"`
 }
 type Service struct {
 	setPinned func(bool)
@@ -109,22 +115,29 @@ func fetchRepositoryWithToken(ctx context.Context, client *http.Client, req Repo
 	}
 	endpoint := prefix + "/repos/" + url.PathEscape(req.Owner) + "/" + url.PathEscape(req.Repo)
 	var repo struct {
-		FullName    string `json:"full_name"`
-		Description string `json:"description"`
-		HTMLURL     string `json:"html_url"`
-		Stargazers  int    `json:"stargazers_count"`
-		Stars       int    `json:"stars_count"`
-		Forks       int    `json:"forks_count"`
-		Issues      int    `json:"open_issues_count"`
-		PushedAt    string `json:"pushed_at"`
-		UpdatedAt   string `json:"updated_at"`
+		FullName    string          `json:"full_name"`
+		Description string          `json:"description"`
+		HTMLURL     string          `json:"html_url"`
+		Stargazers  int             `json:"stargazers_count"`
+		Stars       int             `json:"stars_count"`
+		Forks       int             `json:"forks_count"`
+		Issues      int             `json:"open_issues_count"`
+		Subscribers *int            `json:"subscribers_count"`
+		Watchers    *int            `json:"watchers_count"`
+		Language    string          `json:"language"`
+		License     json.RawMessage `json:"license"`
+		CreatedAt   string          `json:"created_at"`
+		PushedAt    string          `json:"pushed_at"`
+		UpdatedAt   string          `json:"updated_at"`
 	}
 	if _, err = readJSON(ctx, &clientCopy, endpoint, auth, &repo); err != nil {
 		return Snapshot{}, err
 	}
 	var release struct {
-		Tag string `json:"tag_name"`
-		URL string `json:"html_url"`
+		Tag         string `json:"tag_name"`
+		URL         string `json:"html_url"`
+		Body        string `json:"body"`
+		PublishedAt string `json:"published_at"`
 	}
 	status, err := readJSON(ctx, &clientCopy, endpoint+"/releases/latest", auth, &release)
 	if err != nil && status != http.StatusNotFound {
@@ -137,7 +150,29 @@ func fetchRepositoryWithToken(ctx context.Context, client *http.Client, req Repo
 	if req.Platform == "github" {
 		stars = repo.Stargazers
 	}
-	return Snapshot{Name: repo.FullName, Description: repo.Description, URL: repo.HTMLURL, Stars: stars, Forks: repo.Forks, Issues: repo.Issues, PushedAt: repo.PushedAt, Release: release.Tag, ReleaseURL: release.URL, CheckedAt: time.Now().UTC().Format(time.RFC3339)}, nil
+	watchers := repo.Watchers
+	if req.Platform == "github" {
+		watchers = repo.Subscribers
+	}
+	return Snapshot{Name: repo.FullName, Description: repo.Description, URL: repo.HTMLURL, Stars: stars, Forks: repo.Forks, Issues: repo.Issues, Watchers: watchers, Language: repo.Language, License: parseLicense(repo.License), CreatedAt: repo.CreatedAt, PushedAt: repo.PushedAt, Release: release.Tag, ReleaseURL: release.URL, ReleaseNotes: release.Body, ReleasePublishedAt: release.PublishedAt, CheckedAt: time.Now().UTC().Format(time.RFC3339)}, nil
+}
+
+func parseLicense(raw json.RawMessage) string {
+	var text string
+	if json.Unmarshal(raw, &text) == nil {
+		return text
+	}
+	var info struct {
+		SPDX string `json:"spdx_id"`
+		Name string `json:"name"`
+	}
+	if json.Unmarshal(raw, &info) == nil {
+		if info.SPDX != "" && info.SPDX != "NOASSERTION" {
+			return info.SPDX
+		}
+		return info.Name
+	}
+	return ""
 }
 func readJSON(ctx context.Context, client *http.Client, address, auth string, out any) (int, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, address, nil)

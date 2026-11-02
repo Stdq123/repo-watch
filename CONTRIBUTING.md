@@ -4,7 +4,7 @@
 
 ## 开发环境
 
-- Windows、Go 1.27.3 或更高版本、WebView2 Runtime。
+- Windows、Go 1.27.3 或更高版本。
 - 克隆仓库后执行 `go test ./...`；用 `go run .` 开发，或运行 `./build.ps1` 构建 Windows GUI 程序。
 - 提交前运行 `gofmt -w` 格式化修改过的 Go 文件，再运行 `go test ./...` 和 `go vet ./...`。
 - 请为行为变更提供适当的测试，描述验证方法与平台。UI 或托盘变更请说明手动验证情况。

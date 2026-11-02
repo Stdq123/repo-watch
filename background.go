@@ -12,14 +12,16 @@ import (
 )
 
 type Repository struct {
-	ID       string    `json:"id"`
-	Platform string    `json:"platform"`
-	BaseURL  string    `json:"baseUrl"`
-	Owner    string    `json:"owner"`
-	Repo     string    `json:"repo"`
-	Snapshot *Snapshot `json:"snapshot"`
-	Error    string    `json:"error"`
-	Change   string    `json:"change"`
+	ID        string    `json:"id"`
+	Platform  string    `json:"platform"`
+	BaseURL   string    `json:"baseUrl"`
+	Owner     string    `json:"owner"`
+	Repo      string    `json:"repo"`
+	Tags      []string  `json:"tags,omitempty"`
+	LocalPath string    `json:"localPath,omitempty"`
+	Snapshot  *Snapshot `json:"snapshot"`
+	Error     string    `json:"error"`
+	Change    string    `json:"change"`
 }
 
 func (r Repository) request() RepoRequest {
@@ -90,8 +92,13 @@ func (m *monitor) List() []Repository {
 	out := make([]Repository, len(m.state.Repositories))
 	copy(out, m.state.Repositories)
 	for i := range out {
+		out[i].Tags = append([]string(nil), out[i].Tags...)
 		if out[i].Snapshot != nil {
 			s := *out[i].Snapshot
+			if s.Watchers != nil {
+				watchers := *s.Watchers
+				s.Watchers = &watchers
+			}
 			out[i].Snapshot = &s
 		}
 	}
@@ -127,6 +134,7 @@ func (m *monitor) Add(r Repository) error {
 	if err := validateRequest(r.request()); err != nil {
 		return err
 	}
+	r.Tags = normalizeTags(r.Tags)
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	for _, x := range m.state.Repositories {
@@ -141,6 +149,63 @@ func (m *monitor) Add(r Repository) error {
 		return err
 	}
 	return nil
+}
+func normalizeTags(tags []string) []string {
+	var result []string
+	seen := make(map[string]bool)
+	for _, tag := range tags {
+		tag = strings.TrimSpace(tag)
+		if tag != "" && !seen[tag] {
+			seen[tag] = true
+			result = append(result, tag)
+		}
+	}
+	return result
+}
+
+func (m *monitor) UpdateTags(id string, tags []string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for i := range m.state.Repositories {
+		if m.state.Repositories[i].ID == id {
+			old := m.state.Repositories[i].Tags
+			m.state.Repositories[i].Tags = normalizeTags(tags)
+			if err := m.persistLocked(); err != nil {
+				m.state.Repositories[i].Tags = old
+				return err
+			}
+			return nil
+		}
+	}
+	return fmt.Errorf("仓库不存在")
+}
+
+func (m *monitor) UpdateLocalPath(id, path string) error {
+	path = strings.TrimSpace(path)
+	if path != "" {
+		if !filepath.IsAbs(path) {
+			return fmt.Errorf("请选择绝对路径")
+		}
+		info, err := os.Stat(path)
+		if err != nil || !info.IsDir() {
+			return fmt.Errorf("本地目录不存在或无法访问")
+		}
+		path = filepath.Clean(path)
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for i := range m.state.Repositories {
+		if m.state.Repositories[i].ID == id {
+			old := m.state.Repositories[i].LocalPath
+			m.state.Repositories[i].LocalPath = path
+			if err := m.persistLocked(); err != nil {
+				m.state.Repositories[i].LocalPath = old
+				return err
+			}
+			return nil
+		}
+	}
+	return fmt.Errorf("仓库不存在")
 }
 func (m *monitor) Remove(id string) error {
 	m.mu.Lock()
