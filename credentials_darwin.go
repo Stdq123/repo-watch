@@ -25,7 +25,7 @@ func keychainFind(req RepoRequest) (C.SecKeychainItemRef, unsafe.Pointer, C.UInt
 	var item C.SecKeychainItemRef
 	var data unsafe.Pointer
 	var size C.UInt32
-	status := C.SecKeychainFindGenericPassword(nil, C.UInt32(len(keychainService)), service, C.UInt32(len(accountText)), account, &size, &data, &item)
+	status := C.SecKeychainFindGenericPassword(0, C.UInt32(len(keychainService)), service, C.UInt32(len(accountText)), account, &size, &data, &item)
 	return item, data, size, status
 }
 func keychainError(status C.OSStatus) error {
@@ -59,7 +59,7 @@ func saveCredential(req RepoRequest, token string) error {
 		defer C.free(unsafe.Pointer(account))
 		password := C.CBytes([]byte(token))
 		defer C.free(password)
-		status = C.SecKeychainAddGenericPassword(nil, C.UInt32(len(keychainService)), service, C.UInt32(len(accountText)), account, C.UInt32(len(token)), password, nil)
+		status = C.SecKeychainAddGenericPassword(0, C.UInt32(len(keychainService)), service, C.UInt32(len(accountText)), account, C.UInt32(len(token)), password, nil)
 	}
 	if status != C.errSecSuccess {
 		return keychainError(status)
