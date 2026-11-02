@@ -2,6 +2,7 @@
 /RepoWatch.exe
 /*.test.exe
 /coverage.out
+/dist/
 
 # Local/editor data
 .idea/

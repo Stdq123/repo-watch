@@ -20,3 +20,42 @@ jobs:
       - name: Build Windows GUI
         shell: pwsh
         run: ./build.ps1
+  macos:
+    name: macOS (${{ matrix.arch }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15
+            arch: arm64
+            goarch: arm64
+          - runner: macos-15-intel
+            arch: x86_64
+            goarch: amd64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Test
+        run: |
+          test "$(go env GOARCH)" = "${{ matrix.goarch }}"
+          go test ./...
+      - name: Vet
+        run: go vet ./...
+      - name: Build macOS application
+        run: bash macos/build.sh
+      - name: Verify executable architectures
+        run: |
+          lipo -verify_arch '${{ matrix.arch }}' 'dist/Repo Watch.app/Contents/MacOS/RepoWatch'
+          lipo -verify_arch '${{ matrix.arch }}' 'dist/Repo Watch.app/Contents/MacOS/repowatch-helper'
+      - name: Smoke test packaged helper
+        run: |
+          tmp_home="$(mktemp -d)"
+          printf '{"id":1,"method":"list"}\n' | HOME="$tmp_home" 'dist/Repo Watch.app/Contents/MacOS/repowatch-helper' | grep '"id":1'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: RepoWatch-macOS-${{ matrix.arch }}
+          path: dist/RepoWatch-macOS-${{ matrix.arch }}.zip
