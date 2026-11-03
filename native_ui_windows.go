@@ -282,6 +282,13 @@ func (a *nativeApp) create() error {
 							a.renderRows()
 						}
 					}}),
+					Composite{Background: background, MinSize: Size{Height: 50}, MaxSize: Size{Height: 50}, Layout: VBox{Margins: Margins{Left: 8, Right: 4}, Spacing: 2, Alignment: AlignHNearVNear}, Children: []Widget{
+						Composite{Background: background, Layout: HBox{MarginsZero: true, Spacing: 7, Alignment: AlignHNearVCenter}, Children: []Widget{
+							Label{Text: "●", TextColor: walk.RGB(36, 137, 76)}, Label{AssignTo: &a.count, Text: "正在关注 0 个仓库", TextColor: muted}, HSpacer{},
+						}},
+						Label{AssignTo: &a.status, Text: "尚未刷新", TextColor: muted},
+						CheckBox{AssignTo: &a.pin, Text: "窗口置顶", Visible: false, OnCheckedChanged: func() { a.updatePin() }},
+					}},
 				}},
 				Composite{Column: 1, AssignTo: &a.centerFrame, Background: SolidColorBrush{Color: walk.RGB(232, 235, 236)}, MinSize: Size{Width: 420}, StretchFactor: 4, Layout: Grid{Columns: 1, Margins: Margins{Left: 1, Top: 1, Right: 1, Bottom: 1}, SpacingZero: true}, Children: []Widget{
 					Composite{AssignTo: &a.centerPanel, Background: surface, MinSize: Size{Width: 418}, StretchFactor: 4, Layout: Grid{Columns: 1, Margins: Margins{Left: 14, Top: 19, Right: 12, Bottom: 8}, Spacing: 8, Alignment: AlignHNearVNear}, Children: []Widget{
@@ -331,7 +338,7 @@ func (a *nativeApp) create() error {
 						}, OnItemActivated: func() { a.openLink(false) }}),
 					}},
 				}},
-				Composite{Column: 2, RowSpan: 2, AssignTo: &a.inspector, Background: surface, MinSize: Size{Width: 315}, MaxSize: Size{Width: 340}, Layout: VBox{Margins: Margins{Left: 20, Top: 16, Right: 20, Bottom: 10}, Spacing: 8, Alignment: AlignHNearVNear}, Children: []Widget{
+				Composite{Column: 2, AssignTo: &a.inspector, Background: surface, MinSize: Size{Width: 315}, MaxSize: Size{Width: 340}, Layout: VBox{Margins: Margins{Left: 20, Top: 16, Right: 20, Bottom: 10}, Spacing: 8, Alignment: AlignHNearVNear}, Children: []Widget{
 					Composite{AssignTo: &a.detailHeader, Background: surface, MinSize: Size{Height: 65}, MaxSize: Size{Height: 65}, Layout: HBox{MarginsZero: true, Spacing: 10, Alignment: AlignHNearVCenter}, Children: []Widget{
 						CustomWidget{AssignTo: &a.detailIcon, Background: surface, MinSize: Size{Width: 54, Height: 54}, MaxSize: Size{Width: 54, Height: 54}, Accessibility: Accessibility{Name: "仓库图标", Role: AccRoleGraphic}, PaintPixels: func(c *walk.Canvas, _ walk.Rectangle) error {
 							if a.detailIcon != nil {
@@ -392,9 +399,6 @@ func (a *nativeApp) create() error {
 					PushButton{AssignTo: &a.releaseButton, Text: "查看发行版", MinSize: Size{Height: 38}, OnClicked: a.openAllReleases},
 					PushButton{AssignTo: &a.terminalButton, Text: "在终端打开", MinSize: Size{Height: 38}, OnClicked: a.openTerminal},
 					PushButton{AssignTo: &a.manageButton, Text: "编辑仓库", MinSize: Size{Height: 38}, OnClicked: a.manageRepository},
-				}},
-				Composite{Row: 1, Column: 0, ColumnSpan: 2, Background: background, MinSize: Size{Height: 34}, MaxSize: Size{Height: 34}, Layout: HBox{Margins: Margins{Left: 18, Top: 3, Right: 18, Bottom: 3}, Spacing: 7, Alignment: AlignHNearVCenter}, Children: []Widget{
-					Label{Text: "●", TextColor: walk.RGB(36, 137, 76)}, Label{AssignTo: &a.count, Text: "正在关注 0 个仓库", TextColor: muted}, Label{Text: "│", TextColor: walk.RGB(218, 224, 224)}, Label{AssignTo: &a.status, Text: "尚未刷新", TextColor: muted}, HSpacer{}, CheckBox{AssignTo: &a.pin, Text: "窗口置顶", Visible: false, OnCheckedChanged: func() { a.updatePin() }}, Label{Text: "✓  持续监控中", TextColor: muted},
 				}},
 			}},
 		},

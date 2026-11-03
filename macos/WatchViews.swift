@@ -136,10 +136,8 @@ struct MainView: View {
         VStack(spacing: 0) {
             topBar
             HStack(alignment: .top, spacing: 0) {
-                VStack(spacing: 0) {
-                    HStack(spacing: 0) { sidebar; repositoryTable }
-                    footer
-                }
+                sidebar
+                repositoryTable
                 Rectangle().fill(WatchStyle.border).frame(width: 1)
                 inspector.frame(width: 320).background(WatchStyle.surface)
             }
@@ -170,14 +168,17 @@ struct MainView: View {
     }
 
     private var sidebar: some View {
-        ScrollView {
-            VStack(spacing: 3) {
-                sidebarRow("全部仓库", tag: "", count: store.repositories.count, icon: "layout-grid")
-                ForEach(tags, id: \.self) { tag in
-                    sidebarRow(tag, tag: tag, count: store.repositories.filter { ($0.tags ?? []).contains(tag) }.count, icon: "tag")
-                }
-            }.padding(.horizontal, 10).padding(.top, 16)
-        }.frame(width: 220).background(WatchStyle.background)
+        VStack(spacing: 0) {
+            ScrollView {
+                VStack(spacing: 3) {
+                    sidebarRow("全部仓库", tag: "", count: store.repositories.count, icon: "layout-grid")
+                    ForEach(tags, id: \.self) { tag in
+                        sidebarRow(tag, tag: tag, count: store.repositories.filter { ($0.tags ?? []).contains(tag) }.count, icon: "tag")
+                    }
+                }.padding(.horizontal, 10).padding(.top, 16)
+            }.frame(maxHeight: .infinity)
+            sidebarStatus
+        }.frame(width: 220).frame(maxHeight: .infinity).background(WatchStyle.background)
     }
     private func sidebarRow(_ title: String, tag: String, count: Int, icon: String) -> some View {
         let active = selectedTag == tag
@@ -244,13 +245,19 @@ struct MainView: View {
             HStack(spacing: 3) { Text(title); if order == sort { WatchIcon(name: (sort == .name) != reversed ? "arrow-up" : "arrow-down", size: 11, color: WatchStyle.muted) } }.frame(width: width, alignment: .leading)
         }.buttonStyle(.plain)
     }
-    private var footer: some View {
-        HStack(spacing: 7) {
-            Circle().fill(WatchStyle.green).frame(width: 6, height: 6)
-            Text("正在关注 \(store.repositories.count) 个仓库"); Text("│").foregroundColor(WatchStyle.border)
-            Text(store.repositories.compactMap { $0.snapshot?.checkedAt }.max().map { "最近检查：\(relativeDate($0))" } ?? "尚未刷新")
-            Spacer(); Text("✓  持续监控中")
-        }.font(watchFont(11)).foregroundColor(WatchStyle.muted).padding(.horizontal, 16).frame(height: 34)
+    private var sidebarStatus: some View {
+        let latest = store.repositories.compactMap { $0.snapshot?.checkedAt }.compactMap(parseDate).max()
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd HH:mm"
+        return VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 7) {
+                Circle().fill(WatchStyle.green).frame(width: 6, height: 6)
+                Text("正在关注 \(store.repositories.count) 个仓库")
+            }
+            Text(latest.map { "最近刷新：\(formatter.string(from: $0))" } ?? "尚未刷新")
+                .lineLimit(1)
+        }.font(watchFont(11)).foregroundColor(WatchStyle.muted)
+            .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 18).padding(.bottom, 10)
     }
 
     @ViewBuilder private var inspector: some View {
