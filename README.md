@@ -64,10 +64,10 @@ macOS 版本将仓库数据保存在 `~/Library/Application Support/RepoWatch/mo
 
 ## 仓库与参与
 
-GitHub Actions 工作流已停用；原配置保存在 `.github/workflows-disabled/`，测试和打包请在本机执行。
+GitHub Actions 仅用于仓库镜像同步；自动测试和打包工作流保存在 `.github/workflows-disabled/`，测试和打包请在本机执行。
 
 - 主仓库：[GitHub](https://github.com/Stdq123/repo-watch)
-- 仓库副本：[Gitea](https://gitea.com/puremixai/repo-watch) · [Codeberg](https://codeberg.org/puremixai/repo-watch)。当前不自动同步，副本可能落后于主仓库。
+- 自动同步副本：[Gitea](https://gitea.com/puremixai/repo-watch) · [Codeberg](https://codeberg.org/puremixai/repo-watch)。主分支更新后及每日定时同步 `main` 和标签；仓库议题、发行包和其他分支不在同步范围内。
 - Bug 和功能建议请在主仓库提交 [Issue](https://github.com/Stdq123/repo-watch/issues)；贡献方式见 [CONTRIBUTING.md](CONTRIBUTING.md)。
 - 安全问题请按 [SECURITY.md](SECURITY.md) 私下报告。社区行为准则见 [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)。
 
