@@ -56,7 +56,7 @@ bash macos/build.sh
 open "dist/Repo Watch.app"
 ```
 
-脚本生成 `dist/Repo Watch.app` 和可用于传输的 ZIP：Apple Silicon 使用 `RepoWatch-macOS-arm64.zip`，Intel 使用 `RepoWatch-macOS-x86_64.zip`。这是两个独立架构的包；脚本根据当前 Go 环境的架构构建，并非通用二进制。如果应用目录已存在，脚本会停止；移动或删除旧构建后再运行。可以设置 `REPOWATCH_OUTPUT_DIR` 指定输出目录。GitHub Actions 的 macOS 任务会在两种架构上分别测试、检查可执行文件架构并保存 ZIP 工件。
+脚本生成 `dist/Repo Watch.app` 和可用于传输的 ZIP：Apple Silicon 使用 `RepoWatch-macOS-arm64.zip`，Intel 使用 `RepoWatch-macOS-x86_64.zip`。这是两个独立架构的包；脚本根据当前 Go 环境的架构构建，并非通用二进制。如果应用目录已存在，脚本会停止；移动或删除旧构建后再运行。可以设置 `REPOWATCH_OUTPUT_DIR` 指定输出目录。
 
 默认使用临时签名，适合本机测试，不是经过 Apple 公证的发行包。向其他 Mac 分发时，可设置 `REPOWATCH_SIGNING_IDENTITY` 为本机 Developer ID Application 签名身份；正式分发还需要使用 Apple 开发者账户另行公证并附加公证票据。
 
@@ -64,8 +64,10 @@ macOS 版本将仓库数据保存在 `~/Library/Application Support/RepoWatch/mo
 
 ## 仓库与参与
 
+GitHub Actions 工作流已停用；原配置保存在 `.github/workflows-disabled/`，测试和打包请在本机执行。
+
 - 主仓库：[GitHub](https://github.com/Stdq123/repo-watch)
-- 自动同步副本：[Gitea](https://gitea.com/puremixai/repo-watch) · [Codeberg](https://codeberg.org/puremixai/repo-watch)。GitHub Actions 在主分支更新后及每日定时同步 `main` 和标签；仓库议题、发行包和其他分支不在同步范围内。
+- 仓库副本：[Gitea](https://gitea.com/puremixai/repo-watch) · [Codeberg](https://codeberg.org/puremixai/repo-watch)。当前不自动同步，副本可能落后于主仓库。
 - Bug 和功能建议请在主仓库提交 [Issue](https://github.com/Stdq123/repo-watch/issues)；贡献方式见 [CONTRIBUTING.md](CONTRIBUTING.md)。
 - 安全问题请按 [SECURITY.md](SECURITY.md) 私下报告。社区行为准则见 [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)。
 
