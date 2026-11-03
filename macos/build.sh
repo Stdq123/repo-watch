@@ -15,6 +15,10 @@ trap 'rm -rf "$temp"' EXIT
 staged="$temp/Repo Watch.app"
 mkdir -p "$staged/Contents/MacOS" "$staged/Contents/Resources"
 cp macos/Info.plist "$staged/Contents/Info.plist"
+mkdir -p "$staged/Contents/Resources/fonts" "$staged/Contents/Resources/icons/lucide" "$staged/Contents/Resources/icons/simple-icons"
+cp assets/fonts/inter/Inter-Regular.ttf assets/fonts/inter/Inter-Bold.ttf "$staged/Contents/Resources/fonts/"
+cp assets/icons/lucide/*.png "$staged/Contents/Resources/icons/lucide/"
+cp assets/icons/simple-icons/*.png "$staged/Contents/Resources/icons/simple-icons/"
 export MACOSX_DEPLOYMENT_TARGET=12.0
 case "$(go env GOARCH)" in
   arm64) swift_arch=arm64 ;;
@@ -22,7 +26,7 @@ case "$(go env GOARCH)" in
   *) echo "不支持的 Go 架构：$(go env GOARCH)" >&2; exit 1 ;;
 esac
 CGO_ENABLED=1 go build -o "$staged/Contents/MacOS/repowatch-helper" .
-xcrun swiftc -O -target "$swift_arch-apple-macosx12.0" macos/RepoWatch.swift -o "$staged/Contents/MacOS/RepoWatch" -framework AppKit -framework SwiftUI -framework UserNotifications
+xcrun swiftc -O -parse-as-library -target "$swift_arch-apple-macosx12.0" macos/RepoWatch.swift macos/WatchViews.swift -o "$staged/Contents/MacOS/RepoWatch" -framework AppKit -framework SwiftUI -framework UserNotifications -framework CoreText
 iconset="$temp/AppIcon.iconset"
 mkdir -p "$iconset"
 for size in 16 32 128 256 512; do
