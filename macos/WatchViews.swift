@@ -33,6 +33,27 @@ private struct WatchIcon: View {
     }
 }
 
+// AppKit 菜单项，持有闭包，避免 SwiftUI Menu 在 borderlessButton 样式下丢弃自定义标签样式。
+private final class MenuActionItem: NSMenuItem {
+    private let handler: () -> Void
+    init(_ title: String, checked: Bool = false, handler: @escaping () -> Void) {
+        self.handler = handler
+        super.init(title: title, action: #selector(fire), keyEquivalent: "")
+        target = self
+        state = checked ? .on : .off
+    }
+    required init(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+    @objc private func fire() { handler() }
+}
+
+private func showPopupMenu(_ items: [(title: String, checked: Bool, handler: () -> Void)]) {
+    let menu = NSMenu()
+    for item in items {
+        menu.addItem(MenuActionItem(item.title, checked: item.checked, handler: item.handler))
+    }
+    menu.popUp(positioning: nil, at: NSEvent.mouseLocation, in: nil)
+}
+
 private struct WatchButtonStyle: ButtonStyle {
     var primary = false
     func makeBody(configuration: Configuration) -> some View {
@@ -144,7 +165,7 @@ struct MainView: View {
             Spacer()
             Button(action: { adding = true }) { Label { Text("添加仓库") } icon: { WatchIcon(name: "plus", color: .white) } }.buttonStyle(WatchButtonStyle(primary: true)).keyboardShortcut("n")
             Button(action: { store.send("refresh") }) { Label { Text("刷新") } icon: { WatchIcon(name: "refresh-cw") } }.buttonStyle(WatchButtonStyle()).keyboardShortcut("r")
-            Menu { Toggle("窗口置顶", isOn: $pinned) } label: { WatchIcon(name: "settings").frame(width: 32, height: 36) }.menuStyle(.borderlessButton).fixedSize().help("设置")
+            Menu { Toggle("窗口置顶", isOn: $pinned) } label: { Image(systemName: "gearshape").font(.system(size: 15)).frame(width: 32, height: 36) }.menuStyle(.borderlessButton).fixedSize().help("设置")
         }.padding(.horizontal, 16).frame(height: 58)
     }
 
@@ -177,9 +198,16 @@ struct MainView: View {
                     WatchIcon(name: "search", size: 15, color: WatchStyle.muted)
                     TextField("搜索仓库、平台或标签", text: $search).textFieldStyle(.plain).font(watchFont(13))
                 }.padding(.horizontal, 10).frame(height: 38).background(WatchStyle.surface).overlay(RoundedRectangle(cornerRadius: 7).stroke(WatchStyle.border))
-                Menu { ForEach(SortOrder.allCases, id: \.self) { item in Button(item.rawValue) { order = item; reversed = false } } } label: {
-                    HStack { Text("排序：\(order.rawValue)"); Spacer(); WatchIcon(name: "chevron-down", size: 14) }.frame(width: 150, height: 38).padding(.horizontal, 10).background(WatchStyle.surface).overlay(RoundedRectangle(cornerRadius: 5).stroke(WatchStyle.border))
-                }.menuStyle(.borderlessButton).fixedSize().font(watchFont(12))
+                Button(action: {
+                    showPopupMenu(SortOrder.allCases.map { item in (item.rawValue, item == order, { order = item; reversed = false }) })
+                }) {
+                    HStack(spacing: 6) {
+                        Text("排序：\(order.rawValue)").lineLimit(1)
+                        Spacer(minLength: 4)
+                        WatchIcon(name: "chevron-down", size: 12, color: WatchStyle.muted)
+                    }.font(watchFont(12)).padding(.horizontal, 10).frame(width: 150, height: 38)
+                        .background(WatchStyle.surface).overlay(RoundedRectangle(cornerRadius: 5).stroke(WatchStyle.border)).cornerRadius(5)
+                }.buttonStyle(.plain).help("选择排序方式")
                 Button(action: { reversed.toggle() }) { WatchIcon(name: (order == .name) != reversed ? "arrow-up" : "arrow-down").frame(width: 38, height: 38).background(WatchStyle.surface).overlay(RoundedRectangle(cornerRadius: 5).stroke(WatchStyle.border)) }.buttonStyle(.plain).help("切换排序方向")
             }
             tableHeader
@@ -331,18 +359,29 @@ private struct RepositoryInspector: View {
                 if !(repo.tags ?? []).isEmpty { HStack { ForEach(Array((repo.tags ?? []).prefix(3)), id: \.self) { TagPill(text: $0) } } } else { Text("暂无标签").font(watchFont(11)).foregroundColor(WatchStyle.muted) }
                 HStack { metric("star", repo.snapshot?.stars); Spacer(); metric("git-fork", repo.snapshot?.forks); Spacer(); metric("eye", repo.snapshot?.watchers) }.padding(.vertical, 8)
                 Divider()
-                fact("主要语言", repo.snapshot?.language); fact("许可证", repo.snapshot?.license); fact("开放 Issue", repo.snapshot.map { String($0.issues) }); fact("创建时间", repo.snapshot?.createdAt.map(relativeDate)); fact("最近更新", repo.snapshot.map { relativeDate($0.pushedAt) })
-                if !repo.error.isEmpty { Text(repo.error).font(watchFont(11)).foregroundColor(.red) } else if !repo.change.isEmpty { Text(repo.change).font(watchFont(11)).foregroundColor(WatchStyle.muted) }
-                Divider().padding(.top, 4)
+                Group {
+                    fact("主要语言", repo.snapshot?.language); fact("许可证", repo.snapshot?.license); fact("开放 Issue", repo.snapshot.map { String($0.issues) }); fact("创建时间", repo.snapshot?.createdAt.map(relativeDate)); fact("最近更新", repo.snapshot.map { relativeDate($0.pushedAt) })
+                    if !repo.error.isEmpty { Text(repo.error).font(watchFont(11)).foregroundColor(.red) } else if !repo.change.isEmpty { Text(repo.change).font(watchFont(11)).foregroundColor(WatchStyle.muted) }
+                    Divider().padding(.top, 4)
+                }
                 HStack { Text("最新发行版").font(watchFont(12, bold: true)); Spacer(); Button("查看全部") { open(releasesURL) }.buttonStyle(.plain).font(watchFont(11)).foregroundColor(WatchStyle.green) }
                 Button(action: { open(repo.snapshot?.releaseUrl) }) {
                     VStack(alignment: .leading, spacing: 5) { Text(repo.snapshot?.release.isEmpty == false ? repo.snapshot!.release : "暂无发行版").font(watchFont(12, bold: true)); Text(repo.snapshot?.releaseNotes?.isEmpty == false ? repo.snapshot!.releaseNotes! : "暂无可用的发行版信息").font(watchFont(11)).foregroundColor(WatchStyle.muted).lineLimit(2) }.frame(maxWidth: .infinity, minHeight: 68, alignment: .leading).padding(.horizontal, 10).background(WatchStyle.header).cornerRadius(5)
                 }.buttonStyle(.plain).disabled(repo.snapshot?.releaseUrl.isEmpty != false)
-                action("打开仓库", icon: "external-link") { open(repo.snapshot?.url) }
-                action("查看发行版", icon: "tag") { open(releasesURL) }
-                action("在终端打开", icon: "terminal", perform: terminal)
-                action("编辑仓库", icon: "pencil", perform: edit)
-                Menu("更多操作") { Button("复制仓库地址") { if let url = repo.snapshot?.url, !url.isEmpty { NSPasteboard.general.clearContents(); NSPasteboard.general.setString(url, forType: .string) } }; Button("移除仓库", role: .destructive, action: remove) }.frame(maxWidth: .infinity)
+                Group {
+                    action("打开仓库", icon: "external-link") { open(repo.snapshot?.url) }
+                    action("查看发行版", icon: "tag") { open(releasesURL) }
+                    action("在终端打开", icon: "terminal", perform: terminal)
+                    action("编辑仓库", icon: "pencil", perform: edit)
+                    Button(action: {
+                        showPopupMenu([
+                            ("复制仓库地址", false, {
+                                if let url = repo.snapshot?.url, !url.isEmpty { NSPasteboard.general.clearContents(); NSPasteboard.general.setString(url, forType: .string) }
+                            }),
+                            ("移除仓库", false, { remove() }),
+                        ])
+                    }) { HStack { Spacer(); Text("更多操作"); Spacer() }.frame(maxWidth: .infinity) }.buttonStyle(WatchButtonStyle())
+                }
             }.padding(20).frame(maxWidth: .infinity, alignment: .topLeading)
         }
     }
