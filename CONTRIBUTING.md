@@ -4,8 +4,9 @@
 
 ## 开发环境
 
-- Windows、Go 1.27.3 或更高版本。
+- Windows、Go 1.26.10 或更高版本。
 - 克隆仓库后执行 `go test ./...`；用 `go run .` 开发，或运行 `./build.ps1` 构建 Windows GUI 程序。
+- 修改 `repowatch.manifest` 或程序图标后，使用 `go run github.com/akavel/rsrc@v0.10.2 -arch 386 -manifest repowatch.manifest -ico assets/repowatch.ico -o rsrc_windows_386.syso` 更新 32 位资源；64 位资源使用相同命令并将架构改为 `amd64`。
 - 提交前运行 `gofmt -w` 格式化修改过的 Go 文件，再运行 `go test ./...` 和 `go vet ./...`。
 - 请为行为变更提供适当的测试，描述验证方法与平台。UI 或托盘变更请说明手动验证情况。
 

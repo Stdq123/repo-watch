@@ -25,7 +25,9 @@ case "$(go env GOARCH)" in
   amd64) swift_arch=x86_64 ;;
   *) echo "不支持的 Go 架构：$(go env GOARCH)" >&2; exit 1 ;;
 esac
-CGO_ENABLED=1 go build -o "$staged/Contents/MacOS/repowatch-helper" .
+# Go 1.27 requires macOS 13; pin the last supported 1.26 release for macOS 12.
+# Rebuild dependencies so cached cgo objects from newer macOS targets are not reused.
+GOTOOLCHAIN=go1.26.10 CGO_ENABLED=1 go build -a -o "$staged/Contents/MacOS/repowatch-helper" .
 xcrun swiftc -O -parse-as-library -target "$swift_arch-apple-macosx12.0" macos/RepoWatch.swift macos/WatchViews.swift -o "$staged/Contents/MacOS/RepoWatch" -framework AppKit -framework SwiftUI -framework UserNotifications -framework CoreText
 iconset="$temp/AppIcon.iconset"
 mkdir -p "$iconset"

@@ -8,8 +8,8 @@ jobs:
   windows:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
           cache: true
@@ -17,6 +17,8 @@ jobs:
         run: go test ./...
       - name: Vet
         run: go vet ./...
+      - name: Check pointer safety
+        run: go test -count=1 -gcflags=all=-d=checkptr=2 ./...
       - name: Build Windows GUI
         shell: pwsh
         run: ./build.ps1
@@ -33,9 +35,11 @@ jobs:
             arch: x86_64
             goarch: amd64
     runs-on: ${{ matrix.runner }}
+    env:
+      MACOSX_DEPLOYMENT_TARGET: '12.0'
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
           cache: true
@@ -45,17 +49,46 @@ jobs:
           go test ./...
       - name: Vet
         run: go vet ./...
+      - name: Test legacy and current keychain entries
+        run: |
+          test_keychain="$RUNNER_TEMP/repowatch-test.keychain-db"
+          second_keychain="$RUNNER_TEMP/repowatch-second-test.keychain-db"
+          security create-keychain -p 'repowatch-ci-test' "$test_keychain"
+          security create-keychain -p 'repowatch-ci-test' "$second_keychain"
+          security unlock-keychain -p 'repowatch-ci-test' "$test_keychain"
+          security unlock-keychain -p 'repowatch-ci-test' "$second_keychain"
+          security default-keychain -d user -s "$test_keychain"
+          security list-keychains -d user -s "$test_keychain" "$second_keychain"
+          CGO_CFLAGS='-O2 -g -Werror=deprecated-declarations' REPOWATCH_TEST_KEYCHAIN=1 REPOWATCH_TEST_SECONDARY_KEYCHAIN="$second_keychain" go test -count=1 -run '^TestKeychainLegacyCompatibilityAndLifecycle$' ./...
       - name: Build macOS application
-        run: bash macos/build.sh
+        run: |
+          set -o pipefail
+          bash macos/build.sh 2>&1 | tee "$RUNNER_TEMP/repowatch-build.log"
+          if grep -E "warning:.*(deprecated|newer 'macOS')" "$RUNNER_TEMP/repowatch-build.log"; then
+            echo "macOS build produced a deprecation or deployment-target warning" >&2
+            exit 1
+          fi
       - name: Verify executable architectures
         run: |
           lipo 'dist/Repo Watch.app/Contents/MacOS/RepoWatch' -verify_arch '${{ matrix.arch }}'
           lipo 'dist/Repo Watch.app/Contents/MacOS/repowatch-helper' -verify_arch '${{ matrix.arch }}'
+      - name: Verify macOS 12 deployment target
+        run: |
+          for binary in 'dist/Repo Watch.app/Contents/MacOS/RepoWatch' 'dist/Repo Watch.app/Contents/MacOS/repowatch-helper'; do
+            versions="$(xcrun vtool -show-build "$binary" | awk '$1 == "minos" { print $2 }')"
+            test -n "$versions"
+            while IFS= read -r version; do
+              case "$version" in
+                12.0|12.0.0|11.*|10.*) ;;
+                *) echo "$binary requires macOS $version" >&2; exit 1 ;;
+              esac
+            done <<< "$versions"
+          done
       - name: Smoke test packaged helper
         run: |
           tmp_home="$(mktemp -d)"
           printf '{"id":1,"method":"list"}\n' | HOME="$tmp_home" 'dist/Repo Watch.app/Contents/MacOS/repowatch-helper' | grep '"id":1'
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: RepoWatch-macOS-${{ matrix.arch }}
           path: dist/RepoWatch-macOS-${{ matrix.arch }}.zip

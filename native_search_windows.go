@@ -27,7 +27,10 @@ func centerNativeSearchEdit(edit *walk.LineEdit) {
 
 func searchEditProc(hwnd uintptr, msg uint32, wparam, lparam, _, _ uintptr) uintptr {
 	if msg == win.WM_WINDOWPOSCHANGING && lparam != 0 {
-		pos := (*win.WINDOWPOS)(unsafe.Pointer(lparam))
+		// LPARAM points to a Windows-owned WINDOWPOS valid for this message.
+		// Copy it into Go memory rather than converting the integer to a Go pointer.
+		var pos win.WINDOWPOS
+		_, _, _ = nativeMoveMemory.Call(uintptr(unsafe.Pointer(&pos)), lparam, unsafe.Sizeof(pos))
 		if pos.Flags&win.SWP_NOSIZE == 0 && pos.Flags&win.SWP_NOMOVE == 0 && pos.Cy > 0 {
 			dc := win.GetDC(win.HWND(hwnd))
 			if dc != 0 {
@@ -39,6 +42,7 @@ func searchEditProc(hwnd uintptr, msg uint32, wparam, lparam, _, _ uintptr) uint
 					if height < pos.Cy {
 						pos.Y += (pos.Cy - height) / 2
 						pos.Cy = height
+						_, _, _ = nativeMoveMemory.Call(lparam, uintptr(unsafe.Pointer(&pos)), unsafe.Sizeof(pos))
 					}
 				}
 				win.SelectObject(dc, old)

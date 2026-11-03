@@ -1,6 +1,10 @@
 module repowatch
 
-go 1.27.3
+go 1.26.10
+
+replace github.com/lxn/win => ./third_party/win
+
+replace github.com/lxn/walk => ./third_party/walk
 
 require (
 	github.com/danieljoos/wincred v1.2.3

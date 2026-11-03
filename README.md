@@ -32,7 +32,7 @@ GitHub 细粒度令牌需选择目标私有仓库并授予 **Metadata: read** �
 
 ## Windows 从源码构建
 
-需要 Windows 和 Go 1.27.3 或更高版本。原生界面无需 WebView2 Runtime 或 Node.js。PowerShell：
+需要 Windows 和 Go 1.26.10 或更高版本。原生界面无需 WebView2 Runtime 或 Node.js。PowerShell：
 
 ```powershell
 git clone https://github.com/Stdq123/repo-watch.git
@@ -46,7 +46,7 @@ go test ./...
 
 ## macOS 从源码构建
 
-需要 macOS 12 或更高版本、Go 1.27.3 或更高版本，以及 Xcode Command Line Tools。构建当前 Mac 的 CPU 架构版本（Apple Silicon 或 Intel）：
+需要 macOS 12 或更高版本、Go 1.26.10，以及 Xcode Command Line Tools。打包脚本固定使用 Go 1.26.10，以保留 macOS 12 兼容性；如果本机安装了更高版本的 Go，工具链可能会自动下载。构建当前 Mac 的 CPU 架构版本（Apple Silicon 或 Intel）：
 
 ```sh
 git clone https://github.com/Stdq123/repo-watch.git
